@@ -3,9 +3,28 @@ import TrackPlayer, {
   Capability,
   IOSCategory,
   RepeatMode,
+  type UpdateOptions,
 } from 'react-native-track-player';
 import { trackSource, type RsmTrack } from '../data';
 import { sessionLog } from './sessionLog';
+
+export const PLAYER_OPTIONS: UpdateOptions = {
+  capabilities: [
+    Capability.Play,
+    Capability.Pause,
+    Capability.SkipToNext,
+    Capability.SkipToPrevious,
+    Capability.SeekTo,
+    Capability.Stop,
+  ],
+  // Android lock screen and collapsed notification show only these
+  // (play/pause share one slot): previous · play/pause · next.
+  compactCapabilities: [Capability.SkipToPrevious, Capability.Play, Capability.Pause, Capability.SkipToNext],
+  progressUpdateEventInterval: 1,
+  android: {
+    appKilledPlaybackBehavior: AppKilledPlaybackBehavior.StopPlaybackAndRemoveNotification,
+  },
+};
 
 let ready: Promise<void> | null = null;
 
@@ -34,23 +53,7 @@ async function init() {
     if (!String(e).includes('already been initialized')) throw e;
   }
 
-  await TrackPlayer.updateOptions({
-    capabilities: [
-      Capability.Play,
-      Capability.Pause,
-      Capability.SkipToNext,
-      Capability.SkipToPrevious,
-      Capability.SeekTo,
-      Capability.Stop,
-    ],
-    // Android lock screen and collapsed notification show only these
-    // (play/pause share one slot): previous · play/pause · next.
-    compactCapabilities: [Capability.SkipToPrevious, Capability.Play, Capability.Pause, Capability.SkipToNext],
-    progressUpdateEventInterval: 1,
-    android: {
-      appKilledPlaybackBehavior: AppKilledPlaybackBehavior.StopPlaybackAndRemoveNotification,
-    },
-  });
+  await TrackPlayer.updateOptions(PLAYER_OPTIONS);
 
   // Keep the current queue when the JS side restarts while audio is still
   // playing (Android can recreate the activity around a live service).

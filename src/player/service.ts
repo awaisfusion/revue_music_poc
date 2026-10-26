@@ -1,5 +1,7 @@
+import { Platform } from 'react-native';
 import TrackPlayer, { Event, State } from 'react-native-track-player';
 import { skip } from './controls';
+import { PLAYER_OPTIONS } from './setup';
 import { formatDuration, sessionLog } from './sessionLog';
 
 const HEARTBEAT_MS = 60_000;
@@ -53,9 +55,17 @@ export async function PlaybackService() {
 
   // Log only the states that matter for the report, and only on change.
   let lastState: State | undefined;
+  let commandsRefreshed = false;
   TrackPlayer.addEventListener(Event.PlaybackState, ({ state }) => {
     if (state === lastState) return;
     lastState = state;
+    // iOS enables lock-screen commands when a track loads. The first track
+    // loads before the audio session is active, so next/previous stay greyed
+    // out until the track changes. Re-apply them once playback has started.
+    if (state === State.Playing && !commandsRefreshed && Platform.OS === 'ios') {
+      commandsRefreshed = true;
+      TrackPlayer.updateOptions(PLAYER_OPTIONS);
+    }
     if (state === State.Playing || state === State.Paused || state === State.Buffering || state === State.Stopped || state === State.Ended) {
       sessionLog.add('state', `State: ${state}`);
     }
