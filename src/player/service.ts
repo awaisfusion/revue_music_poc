@@ -1,4 +1,5 @@
 import TrackPlayer, { Event, State } from 'react-native-track-player';
+import { skip } from './controls';
 import { formatDuration, sessionLog } from './sessionLog';
 
 const HEARTBEAT_MS = 60_000;
@@ -16,11 +17,11 @@ export async function PlaybackService() {
   });
   TrackPlayer.addEventListener(Event.RemoteNext, () => {
     sessionLog.add('remote', 'Remote: next');
-    TrackPlayer.skipToNext();
+    skip('next', { resume: true });
   });
   TrackPlayer.addEventListener(Event.RemotePrevious, () => {
     sessionLog.add('remote', 'Remote: previous');
-    TrackPlayer.skipToPrevious();
+    skip('previous', { resume: true });
   });
   TrackPlayer.addEventListener(Event.RemoteSeek, e => {
     TrackPlayer.seekTo(e.position);

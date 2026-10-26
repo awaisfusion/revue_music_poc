@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import TrackPlayer, { useActiveTrack, useIsPlaying, useProgress } from 'react-native-track-player';
+import { skip } from '../player/controls';
 import { colors, radius } from '../theme';
 import { Artwork } from './Artwork';
 import { Gradient } from './Gradient';
@@ -23,7 +24,7 @@ export function MiniPlayer({ onOpen }: { onOpen: () => void }) {
         <Pressable hitSlop={10} onPress={() => (playing ? TrackPlayer.pause() : TrackPlayer.play())} style={styles.btn}>
           <Icon name={playing ? 'pause' : 'play'} size={22} filled />
         </Pressable>
-        <Pressable hitSlop={10} onPress={() => TrackPlayer.skipToNext()} style={styles.btn}>
+        <Pressable hitSlop={10} onPress={() => skip('next')} style={styles.btn}>
           <Icon name="next" size={22} filled />
         </Pressable>
       </View>

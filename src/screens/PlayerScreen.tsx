@@ -5,6 +5,7 @@ import { Artwork } from '../components/Artwork';
 import { Gradient } from '../components/Gradient';
 import { Icon } from '../components/Icon';
 import { ProgressBar } from '../components/ProgressBar';
+import { skip } from '../player/controls';
 import { colors, radius } from '../theme';
 
 const ART_SIZE = Math.min(Dimensions.get('window').width - 64, 360);
@@ -38,7 +39,7 @@ export function PlayerScreen({ visible, onClose }: { visible: boolean; onClose: 
         <ProgressBar />
 
         <View style={styles.controls}>
-          <Pressable hitSlop={12} onPress={() => TrackPlayer.skipToPrevious()}>
+          <Pressable hitSlop={12} onPress={() => skip('previous')}>
             <Icon name="prev" size={32} filled />
           </Pressable>
           <Pressable onPress={() => (playing ? TrackPlayer.pause() : TrackPlayer.play())}>
@@ -46,7 +47,7 @@ export function PlayerScreen({ visible, onClose }: { visible: boolean; onClose: 
               <Icon name={playing ? 'pause' : 'play'} size={32} color={colors.onPrimary} filled />
             </Gradient>
           </Pressable>
-          <Pressable hitSlop={12} onPress={() => TrackPlayer.skipToNext()}>
+          <Pressable hitSlop={12} onPress={() => skip('next')}>
             <Icon name="next" size={32} filled />
           </Pressable>
         </View>
