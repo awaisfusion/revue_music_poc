@@ -34,7 +34,8 @@ export async function PlaybackService() {
     if (!e.track) return;
     // The first active track after loading a queue is not a change.
     // (iOS sends undefined for "no previous track", Android sends null.)
-    if (e.lastTrack == null || e.lastIndex == null) {
+    // Re-selecting the loaded track (Android) is not a change either.
+    if (e.lastTrack == null || e.lastIndex == null || e.lastTrack.id === e.track.id) {
       sessionLog.add('state', `Queue loaded at ${e.track.title}`);
       return;
     }
