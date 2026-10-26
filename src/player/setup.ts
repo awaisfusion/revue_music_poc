@@ -43,7 +43,9 @@ async function init() {
       Capability.SeekTo,
       Capability.Stop,
     ],
-    compactCapabilities: [Capability.Play, Capability.Pause, Capability.SkipToNext],
+    // Android lock screen and collapsed notification show only these
+    // (play/pause share one slot): previous · play/pause · next.
+    compactCapabilities: [Capability.SkipToPrevious, Capability.Play, Capability.Pause, Capability.SkipToNext],
     progressUpdateEventInterval: 1,
     android: {
       appKilledPlaybackBehavior: AppKilledPlaybackBehavior.StopPlaybackAndRemoveNotification,
