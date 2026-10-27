@@ -93,21 +93,56 @@ const pick = (r: Base44Record, keys: string[]) => {
   return undefined;
 };
 
+// RSM Track records (confirmed 2026-10-27): title, artist_name, album_title,
+// cover_image_url (public), duration_seconds, is_premium_only, track_number,
+// and audio as a private file in audio_uri (audio_url is empty). Private
+// files play through a signed URL; see signTrack().
 export function toRsmTrack(r: Base44Record): RsmTrack | null {
-  const audioUrl = pick(r, ['audio_url', 'file_url', 'stream_url', 'audio_file', 'url']);
-  if (!audioUrl) return null;
-  const duration = r.duration ?? r.duration_seconds;
+  const audioUrl = pick(r, ['audio_url', 'file_url', 'stream_url']) ?? '';
+  const audioUri = pick(r, ['audio_uri']);
+  if (!audioUrl && !audioUri) return null;
+  const duration = r.duration_seconds ?? r.duration;
   return {
     id: String(r.id),
     title: pick(r, ['title', 'name']) ?? 'Untitled',
-    artist: pick(r, ['artist_name', 'artist', 'artist_display_name']) ?? 'Revive Soul Music',
-    album: pick(r, ['album_title', 'album_name', 'album']),
+    artist: pick(r, ['artist_name', 'artist']) ?? 'Revive Soul Music',
+    album: pick(r, ['album_title', 'album_name']),
     audioUrl,
-    artworkUrl: pick(r, ['cover_url', 'artwork_url', 'cover_image', 'image_url', 'cover_art']),
+    audioUri: audioUrl ? undefined : audioUri,
+    artworkUrl: pick(r, ['cover_image_url', 'cover_url', 'artwork_url', 'image_url']),
     durationSec: typeof duration === 'number' ? duration : undefined,
-    isPremium: r.is_premium === true,
+    isPremium: r.is_premium_only === true || r.is_premium === true,
   };
 }
+
+// Base44 caps signed URLs at 1 hour; re-sign anything older than 45 minutes.
+export const SIGNED_URL_TTL_SEC = 3600;
+export const RESIGN_AFTER_MS = 45 * 60_000;
+
+async function signFileUri(fileUri: string): Promise<string> {
+  const res = await fetch(api('/integration-endpoints/Core/CreateFileSignedUrl'), {
+    method: 'POST',
+    headers: headers(true),
+    body: JSON.stringify({ file_uri: fileUri, expires_in: SIGNED_URL_TTL_SEC }),
+  });
+  if (!res.ok) throw new Error(`Could not get a playable link: ${await errorText(res)}`);
+  const { signed_url } = (await res.json()) as { signed_url?: string };
+  if (!signed_url) throw new Error('Base44 returned no signed link.');
+  return signed_url;
+}
+
+// Returns the track with a fresh signed URL if it uses a private file.
+export async function signTrack(track: RsmTrack): Promise<RsmTrack> {
+  if (!track.audioUri) return track;
+  return { ...track, audioUrl: await signFileUri(track.audioUri), signedAt: Date.now() };
+}
+
+export const needsResign = (t: object) => {
+  const { audioUri, signedAt } = t as { audioUri?: unknown; signedAt?: unknown };
+  return typeof audioUri === 'string' && (typeof signedAt !== 'number' || Date.now() - signedAt > RESIGN_AFTER_MS);
+};
+
+export const hasBase44Session = () => authToken !== null;
 
 async function listEntity(entity: string, query: string) {
   const res = await fetch(api(`/entities/${entity}?${query}`), { headers: headers() });
@@ -121,18 +156,23 @@ export type Base44Fetch = { tracks: RsmTrack[]; records: number; firstRecordKeys
 // the first record's field names so unmapped fields are visible in the app.
 export async function fetchBase44Tracks(): Promise<Base44Fetch> {
   const records = await listEntity('Track', 'sort=-play_count&limit=50');
+  const mapped = records.map(toRsmTrack).filter((t): t is RsmTrack => t !== null);
   return {
-    tracks: records.map(toRsmTrack).filter((t): t is RsmTrack => t !== null),
+    tracks: await Promise.all(mapped.map(signTrack)),
     records: records.length,
     firstRecordKeys: records[0] ? Object.keys(records[0]) : [],
   };
 }
 
+export async function loadSavedBase44Token() {
+  if (!authToken) authToken = await AsyncStorage.getItem(TOKEN_KEY).catch(() => null);
+  return authToken !== null;
+}
+
 export const base44Source: TrackSource = {
-  name: 'Base44',
+  name: 'RSM catalogue (Base44)',
   async getQueue() {
-    // At launch (DATA_SOURCE = 'base44') the saved token is not loaded yet.
-    if (!authToken) authToken = await AsyncStorage.getItem(TOKEN_KEY).catch(() => null);
+    await loadSavedBase44Token();
     return (await fetchBase44Tracks()).tracks;
   },
 };

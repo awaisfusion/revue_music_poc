@@ -5,6 +5,7 @@ import { Gradient } from '../components/Gradient';
 import { Icon } from '../components/Icon';
 import { BASE44 } from '../config';
 import {
+  base44Source,
   fetchBase44Tracks,
   restoreBase44Session,
   signInBase44,
@@ -68,15 +69,15 @@ export function Base44Screen({ visible, onClose, onQueueChanged }: Props) {
         setMessage(`Found ${result.records} records, but none had a recognised audio field. Fields: ${result.firstRecordKeys.join(', ')}`);
         return;
       }
-      await replaceQueue(result.tracks);
+      await replaceQueue(result.tracks, base44Source.name);
       sessionLog.add('app', `Loaded ${result.tracks.length} Base44 tracks`);
-      onQueueChanged('Base44');
+      onQueueChanged(base44Source.name);
       setMessage(`Loaded ${result.tracks.length} of ${result.records} tracks into the player.`);
     });
 
   const useSamples = () =>
     run(async () => {
-      await replaceQueue(await sampleSource.getQueue());
+      await replaceQueue(await sampleSource.getQueue(), sampleSource.name);
       onQueueChanged(sampleSource.name);
       setMessage('Switched back to the sample tracks.');
     });

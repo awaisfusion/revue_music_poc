@@ -5,7 +5,12 @@ export type RsmTrack = {
   title: string;
   artist: string;
   album?: string;
+  // Playable URL. For Base44 private files this is a signed URL that expires.
   audioUrl: string;
+  // Base44 private file path; set when audioUrl is a signed URL that needs refreshing.
+  audioUri?: string;
+  // When audioUrl was signed (ms since epoch).
+  signedAt?: number;
   artworkUrl?: string;
   durationSec?: number;
   isPremium?: boolean;

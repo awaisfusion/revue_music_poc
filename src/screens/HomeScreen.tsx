@@ -6,8 +6,7 @@ import { Artwork } from '../components/Artwork';
 import { Gradient } from '../components/Gradient';
 import { Icon } from '../components/Icon';
 import { MiniPlayer } from '../components/MiniPlayer';
-import { trackSource } from '../data';
-import { setupPlayer } from '../player/setup';
+import { getQueueSourceName, setupPlayer } from '../player/setup';
 import { formatDuration, sessionLog } from '../player/sessionLog';
 import { colors, radius } from '../theme';
 import { Base44Screen } from './Base44Screen';
@@ -19,7 +18,7 @@ export function HomeScreen() {
   const [error, setError] = useState<string | null>(null);
   const [playerOpen, setPlayerOpen] = useState(false);
   const [base44Open, setBase44Open] = useState(false);
-  const [sourceName, setSourceName] = useState(trackSource.name);
+  const [sourceName, setSourceName] = useState(getQueueSourceName());
   const active = useActiveTrack();
 
   const refreshQueue = async (name: string) => {
@@ -30,7 +29,10 @@ export function HomeScreen() {
   useEffect(() => {
     setupPlayer()
       .then(() => TrackPlayer.getQueue())
-      .then(setQueue)
+      .then(q => {
+        setQueue(q);
+        setSourceName(getQueueSourceName());
+      })
       .catch(e => setError(String(e?.message ?? e)));
   }, []);
 

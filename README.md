@@ -85,8 +85,11 @@ Native config:
 - Entities seen in the web app's requests: `Track`, `Album`, `Genre`, `Playlist`, `ListeningHistory`, `Like`, `Comment`, `UserPoints`, `Notification`, `User`
 - Member sign-in: Google, Facebook, email/password
 - Email login (from the public `@base44/sdk` 0.8.57): `POST /api/apps/<appId>/auth/login` with `{email, password}` returns `{access_token, user}`. If the app requires a Cloudflare Turnstile captcha, native login fails and the Base44 screen says so
-- Still unknown: Track field names (audio URL, artwork), where premium status lives, whether audio URLs expire
+- The app is private: entity reads without a member token return 403 `auth_required`
+- Track fields (confirmed 2026-10-27 on 15 RSM tracks): `title`, `artist_name`, `album_title`, `album_id`, `artist_id`, `genre_id`, `cover_image_url` (public URL), `duration_seconds` (30 on full songs, so not used), `is_premium_only`, `is_sample`, `track_number`, `play_count`, `audio_uri` / `preview_uri` (private file paths; `audio_url` / `preview_url` are empty)
+- Private audio plays through a signed URL: `POST /api/apps/<appId>/integration-endpoints/Core/CreateFileSignedUrl` with `{file_uri, expires_in}` (max 3600 s) returns `{signed_url}` on `media.base44.com` (audio/mpeg, supports range requests). The app signs each track at load, re-signs the next two tracks when they are over 45 minutes old, and re-signs the current track once after a playback error
+- Still unknown: where premium status lives on the member, whether standard members can get signed URLs for `is_premium_only` tracks, and whether `CreateFileSignedUrl` uses RSM's Base44 integration credits
 
-To test live data: tap **Base44** in the app header, sign in with an RSM email test account, then **Load Base44 tracks**. If the records have unrecognised fields, the screen lists them; fix the mapping in `toRsmTrack()`. To make Base44 the default at launch, set `DATA_SOURCE = 'base44'` in `src/config.ts`.
+To test live data: tap **Base44** in the app header, sign in with an RSM email test account, then **Load Base44 tracks**. After that the login is saved, and every launch loads the RSM catalogue (falling back to the samples if Base44 fails). If the records have unrecognised fields, the screen lists them; fix the mapping in `toRsmTrack()`. To make Base44 the default at launch, set `DATA_SOURCE = 'base44'` in `src/config.ts`.
 
 The prototype keeps the Base44 token in AsyncStorage; Milestone 4 moves it to the Keychain / Keystore.

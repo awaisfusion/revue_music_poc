@@ -1,7 +1,7 @@
 import { Platform } from 'react-native';
 import TrackPlayer, { Event, State } from 'react-native-track-player';
 import { skip } from './controls';
-import { PLAYER_OPTIONS } from './setup';
+import { PLAYER_OPTIONS, refreshUpcoming, reloadActiveWithFreshLink } from './setup';
 import { formatDuration, sessionLog } from './sessionLog';
 
 const HEARTBEAT_MS = 60_000;
@@ -33,19 +33,35 @@ export async function PlaybackService() {
     TrackPlayer.stop();
   });
 
+  // Set on the first State.Playing after launch (see PlaybackState below).
+  let hasPlayed = false;
   TrackPlayer.addEventListener(Event.PlaybackActiveTrackChanged, e => {
     if (!e.track) return;
-    // The first active track after loading a queue is not a change.
-    // (iOS sends undefined for "no previous track", Android sends null.)
-    // Re-selecting the loaded track (Android) is not a change either.
-    if (e.lastTrack == null || e.lastIndex == null || e.lastTrack.id === e.track.id) {
-      sessionLog.add('state', `Queue loaded at ${e.track.title}`);
+    refreshUpcoming().catch(err => sessionLog.add('error', `Link refresh failed: ${String(err?.message ?? err)}`));
+    // Loading the queue, or picking the first song before anything has
+    // played, is not a track change. Android reports a "previous track" even
+    // for a fresh queue, so lastTrack alone can't tell.
+    if (!hasPlayed || e.lastTrack == null || e.lastTrack.id === e.track.id) {
+      sessionLog.add('state', `Queue at ${e.track.title}`);
       return;
     }
     sessionLog.add('track', `Now playing: ${e.track.title} — ${e.track.artist ?? ''}`);
   });
-  TrackPlayer.addEventListener(Event.PlaybackError, e => {
+
+  // A Base44 link can expire while paused for over an hour. Re-sign and
+  // retry once per track, at most every 5 minutes, so errors can't loop.
+  const retried = new Map<string, number>();
+  TrackPlayer.addEventListener(Event.PlaybackError, async e => {
     sessionLog.add('error', `Playback error: ${e.code ?? ''} ${e.message}`);
+    const track = await TrackPlayer.getActiveTrack();
+    const id = String(track?.id ?? '');
+    if (!id || Date.now() - (retried.get(id) ?? 0) < 5 * 60_000) return;
+    retried.set(id, Date.now());
+    try {
+      if (await reloadActiveWithFreshLink()) sessionLog.add('state', `Re-signed expired link for ${track?.title}`);
+    } catch (err) {
+      sessionLog.add('error', `Could not re-sign link: ${String((err as Error)?.message ?? err)}`);
+    }
   });
   TrackPlayer.addEventListener(Event.RemoteDuck, e => {
     // Calls, Siri, navigation prompts. autoHandleInterruptions does the
@@ -59,6 +75,7 @@ export async function PlaybackService() {
   TrackPlayer.addEventListener(Event.PlaybackState, ({ state }) => {
     if (state === lastState) return;
     lastState = state;
+    if (state === State.Playing) hasPlayed = true;
     // iOS enables lock-screen commands when a track loads. The first track
     // loads before the audio session is active, so next/previous stay greyed
     // out until the track changes. Re-apply them once playback has started.
