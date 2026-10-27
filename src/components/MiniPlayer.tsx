@@ -3,7 +3,7 @@ import TrackPlayer, { useActiveTrack, useIsPlaying, useProgress } from 'react-na
 import { skip } from '../player/controls';
 import { colors, radius } from '../theme';
 import { Artwork } from './Artwork';
-import { Gradient } from './Gradient';
+import { GradientFill } from './GradientFill';
 import { Icon } from './Icon';
 
 export function MiniPlayer({ onOpen }: { onOpen: () => void }) {
@@ -29,7 +29,7 @@ export function MiniPlayer({ onOpen }: { onOpen: () => void }) {
         </Pressable>
       </View>
       <View style={styles.progressTrack}>
-        <Gradient style={{ height: 2, width: `${ratio * 100}%` }} />
+        <GradientFill ratio={ratio} height={2} />
       </View>
     </Pressable>
   );
